@@ -38,7 +38,7 @@ with st.sidebar:
     
     if password == "ADMIN2026": 
         st.success("Acceso Autorizado")
-        archivo_nuevo = st.file_uploader("Subir nueva base para TODOS los usuarios", type=["xlsx", "xls"])
+        archivo_nuevo = st.file_uploader("Subir nueva base", type=["xlsx", "xls"])
         
         if archivo_nuevo:
             # ESTA ES LA PARTE CLAVE: Guarda el archivo en el servidor permanentemente
@@ -55,7 +55,7 @@ with st.sidebar:
 
 # 4. LÓGICA DE CONSULTA
 st.title("Módulo de Consulta de Plazas")
-st.markdown("### Información de Percepciones y Puestos")
+#st.markdown("### Información de Percepciones y Puestos")
 
 # Carga automática del archivo persistente
 if os.path.exists(DB_FILE):
@@ -76,7 +76,8 @@ if os.path.exists(DB_FILE):
             else:
                 st.warning("No se encontró información.")
 else:
-    st.info(" El administrador debe cargar el archivo inicial 'COMPENDIO.xlsx' desde el panel lateral.")
+    st.info(" El administrador debe cargar el archivo.")
 
 st.markdown('<div class="footer">INBAL | EEBM</div>', unsafe_allow_html=True)
+
 

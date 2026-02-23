@@ -61,7 +61,7 @@ with st.sidebar:
     with st.expander("Información"):
         st.write("Versión: 1.0")
         st.write("Firma técnica: ")
-        st.write("INBAL")
+        st.write("**INBAL**")
         st.write("**Eduardo Eugenio Badillo Melo**")
 
 # 4. LÓGICA DE CONSULTA
@@ -90,6 +90,7 @@ else:
     st.info(" El sistema no tiene datos cargados. El administrador debe subir un Excel.")
 
 st.markdown('<div class="footer">INBAL | EEBM</div>', unsafe_allow_html=True)
+
 
 
 

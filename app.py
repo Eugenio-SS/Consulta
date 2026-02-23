@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import os
+import glob
 
 # 1. CONFIGURACIÓN E IDENTIDAD VISUAL
 st.set_page_config(page_title="Módulo de Consulta INBAL", page_icon="🏛️", layout="wide")
@@ -19,17 +20,20 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Nombre del archivo que servirá como base de datos permanente
-DB_FILE = "COMPENDIO.xlsx"
-
-# 2. FUNCIÓN PARA CARGAR DATOS
-def cargar_datos(camino):
-    try:
-        df = pd.read_excel(camino)
-        df.columns = df.columns.str.strip()
-        return df.fillna("N/A")
-    except Exception as e:
-        return None
+# 2. FUNCIÓN PARA ENCONTRAR Y CARGAR CUALQUIER EXCEL DISPONIBLE
+def obtener_base_datos():
+    # Busca cualquier archivo .xlsx o .xls en la carpeta actual
+    archivos = glob.glob("*.xlsx") + glob.glob("*.xls")
+    if archivos:
+        # Toma el archivo más reciente (el último que se subió o modificó)
+        archivo_reciente = max(archivos, key=os.path.getmtime)
+        try:
+            df = pd.read_excel(archivo_reciente)
+            df.columns = df.columns.str.strip()
+            return df.fillna("N/A"), archivo_reciente
+        except:
+            return None, None
+    return None, None
 
 # 3. PANEL LATERAL (ADMINISTRACIÓN)
 with st.sidebar:
@@ -38,14 +42,19 @@ with st.sidebar:
     
     if password == "ADMIN2026": 
         st.success("Acceso Autorizado")
-        archivo_nuevo = st.file_uploader("Subir nueva base", type=["xlsx", "xls"])
+        archivo_nuevo = st.file_uploader("Subir nueva base (cualquier nombre)", type=["xlsx", "xls"])
         
         if archivo_nuevo:
-            # ESTA ES LA PARTE CLAVE: Guarda el archivo en el servidor permanentemente
-            with open(DB_FILE, "wb") as f:
+            # Borramos archivos anteriores para que no se mezclen bases viejas
+            viejos = glob.glob("*.xlsx") + glob.glob("*.xls")
+            for v in viejos:
+                try: os.remove(v)
+                except: pass
+            
+            # Guardamos el nuevo con su nombre ORIGINAL
+            with open(archivo_nuevo.name, "wb") as f:
                 f.write(archivo_nuevo.getbuffer())
-            st.success(" Base de datos actualizada.")
-            # Forzamos recarga de la aplicación para leer el nuevo archivo
+            st.success(f" ¡Archivo Base '{archivo_nuevo.name}' cargada !")
             st.rerun()
     
     st.markdown("---")
@@ -55,11 +64,11 @@ with st.sidebar:
 
 # 4. LÓGICA DE CONSULTA
 st.title("Módulo de Consulta de Plazas")
-#st.markdown("### Información de Percepciones y Puestos")
 
-# Carga automática del archivo persistente
-if os.path.exists(DB_FILE):
-    data = cargar_datos(DB_FILE)
+data, nombre_archivo = obtener_base_datos()
+
+if data is not None:
+    st.caption(f" Consultando archivo actual: **{nombre_archivo}**")
     
     tipo_busqueda = st.radio("**Seleccione el método de búsqueda:**", ["Código INBAL", "Código SHCP"], horizontal=True)
     col_filtro = "CÓDIGO INBAL" if tipo_busqueda == "Código INBAL" else "CÓDIGO SHCP"
@@ -76,8 +85,6 @@ if os.path.exists(DB_FILE):
             else:
                 st.warning("No se encontró información.")
 else:
-    st.info(" El administrador debe cargar el archivo.")
+    st.info(" El sistema no tiene datos cargados. El administrador debe subir un Excel.")
 
 st.markdown('<div class="footer">INBAL | EEBM</div>', unsafe_allow_html=True)
-
-

@@ -1,50 +1,79 @@
 import streamlit as st
 import pandas as pd
 
-# 1. CONFIGURACIÓN E IDENTIDAD VISUAL
+# 1. CONFIGURACIÓN
 st.set_page_config(
     page_title="Módulo de Consulta INBAL", 
-    page_icon="", 
+    page_icon="🏛️", 
     layout="wide"
 )
 
-# Estilo CSS
+# Estilo CSS 
 st.markdown("""
     <style>
-    .stApp { background-color: #FFFFFF; }
-    [data-testid="stSidebar"] { background-color: #4A141C !important; }
-    [data-testid="stSidebar"] * { color: white !important; }
-    [data-testid="stMetricValue"] { color: #BC955C !important; }
+    /* Fondo general blanco */
+    .stApp { 
+        background-color: #FFFFFF !important; 
+    }
+    
+    /* FORZAR TEXTO NEGRO en todo el cuerpo principal para legibilidad */
+    .stApp p, .stApp span, .stApp label, .stApp div {
+        color: #1A1A1A !important;
+    }
+
+    /* Barra lateral Guinda con texto blanco */
+    [data-testid="stSidebar"] {
+        background-color: #4A141C !important;
+    }
+    [data-testid="stSidebar"] * {
+        color: white !important;
+    }
+
+    /* Color de los títulos principales */
+    h1, h2, h3 {
+        color: #4A141C !important;
+    }
+
+    /* Ajuste para las métricas (Dorado sobre blanco) */
+    [data-testid="stMetricValue"] {
+        color: #BC955C !important;
+        font-weight: bold !important;
+    }
+    [data-testid="stMetricLabel"] {
+        color: #4A141C !important;
+    }
+
+    /* Marca de autor */
     .footer {
         position: fixed;
-        right: 10px;
-        bottom: 10px;
+        right: 15px;
+        bottom: 15px;
         text-align: right;
-        color: #888888;
-        font-size: 11px;
+        color: #555555 !important;
+        font-size: 12px;
         z-index: 100;
-        font-family: sans-serif;
+        font-weight: bold;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. INICIALIZACIÓN
+# 2. INICIALIZACIÓN DE DATOS
 if 'data' not in st.session_state:
     st.session_state.data = None
 
 # 3. ENCABEZADO
-st.title("🏛️ Módulo de Consulta de Plazas")
-st.subheader("Información de Percepciones y Puestos")
-st.markdown("---")
+st.title("Módulo de Consulta de Plazas")
+st.markdown("### Información de Percepciones y Puestos")
+st.write("Seleccione el método de búsqueda y escriba el código correspondiente.")
 
-# 4. PANEL LATERAL (ADMINISTRACIÓN)
+# 4. PANEL LATERAL
 with st.sidebar:
     st.header("Seguridad")
     password = st.text_input("Clave de Administrador", type="password")
     
     if password == "ADMIN2026": 
         st.success("Acceso Autorizado")
-        archivo = st.file_uploader("Cargar Base Excel (.xlsx, .xls)", type=["xlsx", "xls"])
+        archivo = st.file_uploader("Actualizar Base Excel (.xlsx, .xls)", type=["xlsx", "xls"])
         
         if archivo:
             try:
@@ -52,43 +81,41 @@ with st.sidebar:
                 df_temp = pd.read_excel(archivo, engine=engine)
                 df_temp.columns = df_temp.columns.str.strip()
                 st.session_state.data = df_temp
-                st.success("✅ Datos actualizados")
+                st.success("Base cargada con éxito")
             except Exception as e:
-                st.error(f"Error al leer: {e}")
+                st.error(f"Error al leer el archivo: {e}")
     
     st.markdown("---")
     with st.expander("Información del Sistema"):
         st.write("Versión: 1.0")
         st.write("Firma técnica: **Eduardo Eugenio Badillo Melo**")
 
-# 5. LÓGICA DE CONSULTA (CON SELECCIÓN DE TIPO DE CÓDIGO)
+# 5. LÓGICA DE CONSULTA
 if st.session_state.data is not None:
-    # CUADROS DE SELECCIÓN PARA EL TIPO DE BÚSQUEDA
+    # Cuadros de selección que ahora serán negros y visibles
     tipo_busqueda = st.radio(
-        "Seleccione el método de búsqueda:",
+        "**Paso 1: Seleccione el método de búsqueda**",
         ["Código INBAL", "Código SHCP"],
         horizontal=True
     )
 
-    # El placeholder del buscador cambia según la opción seleccionada
-    etiqueta = "CÓDIGO INBAL" if tipo_busqueda == "Código INBAL" else "CÓDIGO SHCP"
+    columna_filtro = "CÓDIGO INBAL" if tipo_busqueda == "Código INBAL" else "CÓDIGO SHCP"
     
-    busqueda = st.text_input(f"🔍 Ingrese el {etiqueta}:").strip().upper()
+    # Buscador central
+    busqueda = st.text_input(f"**Paso 2: Ingrese el {tipo_busqueda} a consultar:**").strip().upper()
 
     if busqueda:
         df = st.session_state.data
-        
-        # Filtrado dinámico según la opción seleccionada
-        # Buscamos en la columna exacta (asegúrate que en el Excel se llamen así)
-        columna_a_buscar = "CÓDIGO INBAL" if tipo_busqueda == "Código INBAL" else "CÓDIGO SHCP"
-        
-        if columna_a_buscar in df.columns:
-            res = df[df[columna_a_buscar].astype(str).str.contains(busqueda, na=False)]
+        if columna_filtro in df.columns:
+            res = df[df[columna_filtro].astype(str).str.contains(busqueda, na=False)]
 
             if not res.empty:
+                st.markdown("---")
+                # Tabla de resultados
                 st.dataframe(res, use_container_width=True, hide_index=True)
                 
-                st.markdown("### Resumen de la Plaza")
+                # Resumen visual
+                st.markdown("### Resumen de la Plaza (Registro más reciente)")
                 f = res.iloc[0] 
                 c1, c2, c3, c4 = st.columns(4)
                 
@@ -99,16 +126,15 @@ if st.session_state.data is not None:
                 
                 st.info(f"**Puesto:** {f.get('DENOMINACIÓN PUESTOS INBAL', 'No especificado')}")
             else:
-                st.warning(f"No se encontraron registros para ese {etiqueta}.")
+                st.warning(f"No se encontró información para el {tipo_busqueda}: {busqueda}")
         else:
-            st.error(f"Error: No se encontró la columna '{columna_a_buscar}' en el archivo Excel cargado.")
+            st.error(f"La columna '{columna_filtro}' no existe en el Excel cargado.")
 else:
-    st.warning("⚠️ Sistema vacío. El administrador debe cargar el archivo en el panel lateral.")
+    st.info("El sistema está listo. El administrador debe cargar el archivo Excel desde el panel izquierdo.")
 
-# 6. MARCA DE AUTOR FIJA
+# 6. MARCA DE AUTOR
 st.markdown("""
     <div class="footer">
-        INBAL
+        INBAL | EEBM
     </div>
-
     """, unsafe_allow_html=True)

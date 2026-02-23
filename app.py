@@ -4,7 +4,7 @@ import pandas as pd
 # 1. CONFIGURACIÓN E IDENTIDAD VISUAL
 st.set_page_config(
     page_title="Módulo de Consulta INBAL", 
-    page_icon="🏛️", 
+    page_icon="", 
     layout="wide"
 )
 
@@ -58,8 +58,8 @@ with st.sidebar:
     
     st.markdown("---")
     with st.expander("Información del Sistema"):
-        st.write("Versión: 2.1")
-        st.write("Firma técnica: **EEBM**")
+        st.write("Versión: 1.0")
+        st.write("Firma técnica: **Eduardo Eugenio Badillo Melo**")
 
 # 5. LÓGICA DE CONSULTA (CON SELECCIÓN DE TIPO DE CÓDIGO)
 if st.session_state.data is not None:
@@ -108,6 +108,7 @@ else:
 # 6. MARCA DE AUTOR FIJA
 st.markdown("""
     <div class="footer">
-        Eduardo Eugenio Badillo Melo para el INBAL
+        INBAL
     </div>
+
     """, unsafe_allow_html=True)

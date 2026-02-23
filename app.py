@@ -8,33 +8,48 @@ st.set_page_config(
     layout="wide"
 )
 
-# Estilo CSS 
+# Estilo CSS Corregido
 st.markdown("""
     <style>
-    /* Fondo general blanco */
+    /* 1. Fondo general blanco */
     .stApp { 
         background-color: #FFFFFF !important; 
     }
     
-    /* FORZAR TEXTO NEGRO en todo el cuerpo principal para legibilidad */
-    .stApp p, .stApp span, .stApp label, .stApp div {
+    /* 2. TEXTO NEGRO SOLO EN EL CONTENIDO PRINCIPAL (FONDO BLANCO) */
+    [data-testid="stMain"] p, 
+    [data-testid="stMain"] span, 
+    [data-testid="stMain"] label, 
+    [data-testid="stMain"] div,
+    [data-testid="stMain"] h1,
+    [data-testid="stMain"] h2,
+    [data-testid="stMain"] h3 {
         color: #1A1A1A !important;
     }
 
-    /* Barra lateral Guinda con texto blanco */
+    /* 3. BARRA LATERAL GUINDA CON TEXTO BLANCO */
     [data-testid="stSidebar"] {
         background-color: #4A141C !important;
     }
-    [data-testid="stSidebar"] * {
-        color: white !important;
+    
+    /* Forzar texto blanco solo dentro de la barra lateral */
+    [data-testid="stSidebar"] p, 
+    [data-testid="stSidebar"] span, 
+    [data-testid="stSidebar"] label, 
+    [data-testid="stSidebar"] div,
+    [data-testid="stSidebar"] h1, 
+    [data-testid="stSidebar"] h2, 
+    [data-testid="stSidebar"] h3 {
+        color: #FFFFFF !important;
     }
 
-    /* Color de los títulos principales */
-    h1, h2, h3 {
+    /* 4. AJUSTES ESPECÍFICOS */
+    /* Títulos en Guinda para que resalten sobre el blanco */
+    [data-testid="stMain"] h1, [data-testid="stMain"] h3 {
         color: #4A141C !important;
     }
 
-    /* Ajuste para las métricas (Dorado sobre blanco) */
+    /* Métricas en Dorado */
     [data-testid="stMetricValue"] {
         color: #BC955C !important;
         font-weight: bold !important;
@@ -92,7 +107,6 @@ with st.sidebar:
 
 # 5. LÓGICA DE CONSULTA
 if st.session_state.data is not None:
-    # Cuadros de selección que ahora serán negros y visibles
     tipo_busqueda = st.radio(
         "**Paso 1: Seleccione el método de búsqueda**",
         ["Código INBAL", "Código SHCP"],
@@ -101,7 +115,6 @@ if st.session_state.data is not None:
 
     columna_filtro = "CÓDIGO INBAL" if tipo_busqueda == "Código INBAL" else "CÓDIGO SHCP"
     
-    # Buscador central
     busqueda = st.text_input(f"**Paso 2: Ingrese el {tipo_busqueda} a consultar:**").strip().upper()
 
     if busqueda:
@@ -111,10 +124,8 @@ if st.session_state.data is not None:
 
             if not res.empty:
                 st.markdown("---")
-                # Tabla de resultados
                 st.dataframe(res, use_container_width=True, hide_index=True)
                 
-                # Resumen visual
                 st.markdown("### Resumen de la Plaza (Registro más reciente)")
                 f = res.iloc[0] 
                 c1, c2, c3, c4 = st.columns(4)

@@ -60,7 +60,7 @@ with st.sidebar:
     st.markdown("---")
     with st.expander("Información"):
         st.write("Versión: 1.0")
-        st.write(\n \n "INBAL" \n \n)
+        st.write("INBAL")
         st.write("")
         st.write("")
         st.write("Firma técnica: **Eduardo Eugenio Badillo Melo**")
@@ -92,6 +92,7 @@ else:
     st.info(" El sistema no tiene datos cargados. El administrador debe subir un Excel.")
 
 st.markdown('<div class="footer">INBAL | EEBM</div>', unsafe_allow_html=True)
+
 
 
 

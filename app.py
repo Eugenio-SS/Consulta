@@ -115,4 +115,5 @@ else:
     st.info("El sistema no tiene datos cargados.")
 
 # Pie de página 
-st.markdown('<div class="footer">INBAL | EEBM</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">INBAL</div>', unsafe_allow_html=True)
+

@@ -31,17 +31,19 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# CARGAR TOKEN DESDE SECRETS (LA LLAVE SEGURA)
+# CARGAR CONFIGURACIÓN DESDE SECRETS
 try:
     G_TOKEN = st.secrets["GITHUB_TOKEN"]
+    ADMIN_PWD = st.secrets["ADMIN_PASSWORD"]
 except:
-    st.error("Error: Configura el 'GITHUB_TOKEN' en los Secrets de Streamlit.")
+    st.error("Error: Configura 'GITHUB_TOKEN' y 'ADMIN_PASSWORD' en los Secrets de Streamlit.")
     st.stop()
 
 GITHUB_USER = "Eugenio-SS"
 GITHUB_REPO = "Consulta"
 DB_FILE = "COMPENDIO.xlsx"
 
+# SINCRONIZAR A GITHUB
 def actualizar_en_github(archivo_objeto):
     url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{DB_FILE}"
     headers = {"Authorization": f"Bearer {G_TOKEN}"}
@@ -53,6 +55,7 @@ def actualizar_en_github(archivo_objeto):
     res_put = requests.put(url, json=payload, headers=headers)
     return res_put.status_code in [200, 201]
 
+# CARGAR DATOS
 def cargar_datos_seguro():
     url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{DB_FILE}"
     headers = {"Authorization": f"Bearer {G_TOKEN}"}
@@ -65,26 +68,32 @@ def cargar_datos_seguro():
     except: return None
     return None
 
+# PANEL LATERAL (ADMINISTRACIÓN)
 with st.sidebar:
     st.header("Seguridad")
     password = st.text_input("Clave de Administrador", type="password")
-    if password == "ADMIN2026": 
-        st.success("Acceso Autorizado")
-        archivo_nuevo = st.file_uploader("Actualizar Base Excel", type=["xlsx", "xls"])
-        if archivo_nuevo:
-            with st.spinner("Guardando..."):
-                if actualizar_en_github(archivo_nuevo):
-                    st.success("Base cargada correctamente")
-                    st.rerun()
-                else:
-                    st.error("Error al guardar. Revisa los permisos del Token.")
+    
+    if password: # Solo validar si el usuario escribió algo
+        if password == ADMIN_PWD: 
+            st.success("Acceso Autorizado")
+            archivo_nuevo = st.file_uploader("Actualizar Base Excel", type=["xlsx", "xls"])
+            if archivo_nuevo:
+                with st.spinner("Guardando permanentemente..."):
+                    if actualizar_en_github(archivo_nuevo):
+                        st.success("Base cargada correctamente")
+                        st.rerun()
+                    else:
+                        st.error("Error al guardar en GitHub.")
+        else:
+            st.error("Contraseña Incorrecta")
 
     st.markdown("---")
     with st.expander("Información"):
-        st.write("Versión: 2.1")
+        st.write("Versión: 2.2")
         st.write("Firma técnica: ")
         st.write("**INBAL | EEBM**")
 
+# LÓGICA DE CONSULTA
 st.title("Módulo de Consulta de Plazas")
 data = cargar_datos_seguro()
 

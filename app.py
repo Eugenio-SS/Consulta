@@ -58,7 +58,7 @@ def cargar_datos_seguro():
             return df.fillna("N/A")
         except: pass
     
-    # Descargar de GitHub si no está local
+    # Intento 2: Descargar de GitHub si no está local
     try:
         url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{DB_FILE}"
         headers = {"Authorization": f"token {GITHUB_TOKEN}"}
@@ -115,6 +115,6 @@ if data is not None:
             else:
                 st.warning("No se encontró información.")
 else:
-    st.info("El sistema no tiene datos cargados. El administrador debe subir un Excel.")
+    st.info("El sistema no tiene datos cargados.")
 
 st.markdown('<div class="footer">INBAL</div>', unsafe_allow_html=True)

@@ -31,43 +31,40 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- CONFIGURACIÓN DE GITHUB ---
+# CARGAR TOKEN DESDE SECRETS (LA LLAVE SEGURA)
+try:
+    G_TOKEN = st.secrets["GITHUB_TOKEN"]
+except:
+    st.error("Error: Configura el 'GITHUB_TOKEN' en los Secrets de Streamlit.")
+    st.stop()
+
 GITHUB_USER = "Eugenio-SS"
 GITHUB_REPO = "Consulta"
-GITHUB_TOKEN = "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"
 DB_FILE = "COMPENDIO.xlsx"
 
-# SINCRONIZAR A GITHUB
 def actualizar_en_github(archivo_objeto):
     url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{DB_FILE}"
-    headers = {
-        "Authorization": f"Bearer {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github+json"
-    }
+    headers = {"Authorization": f"Bearer {G_TOKEN}"}
     res_get = requests.get(url, headers=headers)
     sha = res_get.json().get('sha') if res_get.status_code == 200 else None
     contenido_b64 = base64.b64encode(archivo_objeto.getvalue()).decode()
-    payload = {"message": "Update database", "content": contenido_b64, "branch": "main"}
+    payload = {"message": "Update DB", "content": contenido_b64, "branch": "main"}
     if sha: payload["sha"] = sha
     res_put = requests.put(url, json=payload, headers=headers)
     return res_put.status_code in [200, 201]
 
-# CARGAR DATOS
-@st.cache_data(show_spinner=False)
 def cargar_datos_seguro():
     url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{DB_FILE}"
-    headers = {"Authorization": f"Bearer {GITHUB_TOKEN}"}
+    headers = {"Authorization": f"Bearer {G_TOKEN}"}
     try:
         res = requests.get(url, headers=headers)
         if res.status_code == 200:
             content = base64.b64decode(res.json()['content'])
             df = pd.read_excel(io.BytesIO(content))
             return df.fillna("N/A")
-    except:
-        return None
+    except: return None
     return None
 
-# PANEL LATERAL (ADMINISTRACIÓN)
 with st.sidebar:
     st.header("Seguridad")
     password = st.text_input("Clave de Administrador", type="password")
@@ -77,11 +74,10 @@ with st.sidebar:
         if archivo_nuevo:
             with st.spinner("Guardando..."):
                 if actualizar_en_github(archivo_nuevo):
-                    st.cache_data.clear() # Limpiar memoria para ver el nuevo archivo
                     st.success("Base cargada correctamente")
                     st.rerun()
                 else:
-                    st.error("Error al guardar en GitHub. Revisa el Token.")
+                    st.error("Error al guardar. Revisa los permisos del Token.")
 
     st.markdown("---")
     with st.expander("Información"):
@@ -89,26 +85,19 @@ with st.sidebar:
         st.write("Firma técnica: ")
         st.write("**INBAL | EEBM**")
 
-# LÓGICA DE CONSULTA
 st.title("Módulo de Consulta de Plazas")
-
 data = cargar_datos_seguro()
 
 if data is not None:
-    st.caption(f"Consultando archivo actual: {DB_FILE}")
-    tipo_busqueda = st.radio("**Seleccione el método de búsqueda:**", ["Código INBAL", "Código SHCP"], horizontal=True)
-    col_filtro = "CÓDIGO INBAL" if tipo_busqueda == "Código INBAL" else "CÓDIGO SHCP"
-    busqueda = st.text_input(f"Ingrese el {tipo_busqueda}:").strip().upper()
-
+    st.caption(f"Archivo: {DB_FILE}")
+    tipo = st.radio("**Seleccione el método:**", ["Código INBAL", "Código SHCP"], horizontal=True)
+    col = "CÓDIGO INBAL" if tipo == "Código INBAL" else "CÓDIGO SHCP"
+    busqueda = st.text_input(f"Ingrese el {tipo}:").strip().upper()
     if busqueda:
-        if col_filtro in data.columns:
-            res = data[data[col_filtro].astype(str).str.contains(busqueda, na=False)]
-            if not res.empty:
-                st.markdown("---")
-                st.write(f"### Resultados para: {busqueda}")
-                st.dataframe(res, use_container_width=True, hide_index=True)
-            else:
-                st.warning("No se encontró información.")
+        res = data[data[col].astype(str).str.contains(busqueda, na=False)]
+        if not res.empty:
+            st.dataframe(res, use_container_width=True, hide_index=True)
+        else: st.warning("No se encontró información.")
 else:
     st.info("El sistema no tiene datos cargados.")
 

@@ -49,14 +49,9 @@ def actualizar_en_github(archivo_objeto):
     res_put = requests.put(url, json=payload, headers=headers)
     return res_put.status_code in [200, 201]
 
-# CARGAR DATOS (NUBE Y LOCAL)
+# CARGAR DATOS (LOCAL Y NUBE)
 def cargar_datos_seguro():
-    if os.path.exists(DB_FILE):
-        try:
-            df = pd.read_excel(DB_FILE)
-            return df.fillna("N/A")
-        except: pass
-    
+    # Paso 1: Intentar descargar siempre de GitHub para estar actualizados
     try:
         url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{DB_FILE}"
         headers = {"Authorization": f"token {GITHUB_TOKEN}"}
@@ -68,7 +63,14 @@ def cargar_datos_seguro():
                 f.write(content)
             return df.fillna("N/A")
     except:
-        return None
+        pass
+    
+    # Paso 2: Si falla la red, intentar leer archivo local
+    if os.path.exists(DB_FILE):
+        try:
+            df = pd.read_excel(DB_FILE)
+            return df.fillna("N/A")
+        except: pass
     return None
 
 # PANEL LATERAL (ADMINISTRACIÓN)
@@ -80,12 +82,11 @@ with st.sidebar:
         archivo_nuevo = st.file_uploader("Actualizar Base Excel", type=["xlsx", "xls"])
         if archivo_nuevo:
             with st.spinner("Guardando permanentemente..."):
-                # ESTA ES LA CLAVE: ENVIAR A GITHUB
                 if actualizar_en_github(archivo_nuevo):
                     with open(DB_FILE, "wb") as f:
                         f.write(archivo_nuevo.getbuffer())
-                    st.success(f"Base cargada correctamente")
-                    st.rerun() # ESTO ACTUALIZA LA PÁGINA AUTOMÁTICAMENTE
+                    st.success("Base cargada correctamente")
+                    st.rerun()
 
     st.markdown("---")
     with st.expander("Información"):
@@ -117,4 +118,3 @@ else:
     st.info("El sistema no tiene datos cargados.")
 
 st.markdown('<div class="footer">INBAL</div>', unsafe_allow_html=True)
-

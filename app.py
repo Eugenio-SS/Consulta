@@ -51,14 +51,12 @@ def actualizar_en_github(archivo_objeto):
 
 # CARGAR DATOS (NUBE Y LOCAL)
 def cargar_datos_seguro():
-    # Intento 1: Buscar archivo local
     if os.path.exists(DB_FILE):
         try:
             df = pd.read_excel(DB_FILE)
             return df.fillna("N/A")
         except: pass
     
-    # Intento 2: Descargar de GitHub si no está local
     try:
         url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{DB_FILE}"
         headers = {"Authorization": f"token {GITHUB_TOKEN}"}
@@ -82,11 +80,12 @@ with st.sidebar:
         archivo_nuevo = st.file_uploader("Actualizar Base Excel", type=["xlsx", "xls"])
         if archivo_nuevo:
             with st.spinner("Guardando permanentemente..."):
+                # ESTA ES LA CLAVE: ENVIAR A GITHUB
                 if actualizar_en_github(archivo_nuevo):
                     with open(DB_FILE, "wb") as f:
                         f.write(archivo_nuevo.getbuffer())
-                    st.success(f"¡Archivo Base '{archivo_nuevo.name}' cargada!")
-                    st.rerun()
+                    st.success(f"Base cargada correctamente")
+                    st.rerun() # ESTO ACTUALIZA LA PÁGINA AUTOMÁTICAMENTE
 
     st.markdown("---")
     with st.expander("Información"):
@@ -118,3 +117,4 @@ else:
     st.info("El sistema no tiene datos cargados.")
 
 st.markdown('<div class="footer">INBAL</div>', unsafe_allow_html=True)
+

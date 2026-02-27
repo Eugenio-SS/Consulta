@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import base64
 import requests
-import os
 import io
 
 # CONFIGURACIÓN E IDENTIDAD VISUAL
@@ -20,9 +19,9 @@ st.markdown("""
     }
     .footer { 
         position: fixed; 
-        right: 250px; 
+        left: 20px; 
         bottom: 20px; 
-        text-align: right; 
+        text-align: left; 
         color: #555555 !important; 
         font-size: 12px; 
         z-index: 100; 
@@ -36,14 +35,13 @@ try:
     G_TOKEN = st.secrets["GITHUB_TOKEN"]
     ADMIN_PWD = st.secrets["ADMIN_PASSWORD"]
 except:
-    st.error("Error: Configura 'GITHUB_TOKEN' y 'ADMIN_PASSWORD' en los Secrets de Streamlit.")
+    st.error("Error: Configura 'GITHUB_TOKEN' y 'ADMIN_PASSWORD' en los Secrets.")
     st.stop()
 
 GITHUB_USER = "Eugenio-SS"
 GITHUB_REPO = "Consulta"
 DB_FILE = "COMPENDIO.xlsx"
 
-# SINCRONIZAR A GITHUB
 def actualizar_en_github(archivo_objeto):
     url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{DB_FILE}"
     headers = {"Authorization": f"Bearer {G_TOKEN}"}
@@ -55,7 +53,6 @@ def actualizar_en_github(archivo_objeto):
     res_put = requests.put(url, json=payload, headers=headers)
     return res_put.status_code in [200, 201]
 
-# CARGAR DATOS
 def cargar_datos_seguro():
     url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{DB_FILE}"
     headers = {"Authorization": f"Bearer {G_TOKEN}"}
@@ -63,22 +60,24 @@ def cargar_datos_seguro():
         res = requests.get(url, headers=headers)
         if res.status_code == 200:
             content = base64.b64decode(res.json()['content'])
-            df = pd.read_excel(io.BytesIO(content))
-            return df.fillna("N/A")
+            # LEER TODAS LAS HOJAS Y CONCATENAR
+            dict_hojas = pd.read_excel(io.BytesIO(content), sheet_name=None)
+            df_final = pd.concat(dict_hojas.values(), ignore_index=True)
+            return df_final.fillna("N/A")
     except: return None
     return None
 
-# PANEL LATERAL (ADMINISTRACIÓN)
+# PANEL LATERAL
 with st.sidebar:
     st.header("Seguridad")
     password = st.text_input("Clave de Administrador", type="password")
     
-    if password: # Solo validar si el usuario escribió algo
+    if password:
         if password == ADMIN_PWD: 
             st.success("Acceso Autorizado")
             archivo_nuevo = st.file_uploader("Actualizar Base Excel", type=["xlsx", "xls"])
             if archivo_nuevo:
-                with st.spinner("Guardando permanentemente..."):
+                with st.spinner("Guardando..."):
                     if actualizar_en_github(archivo_nuevo):
                         st.success("Base cargada correctamente")
                         st.rerun()
@@ -89,24 +88,33 @@ with st.sidebar:
 
     st.markdown("---")
     with st.expander("Información"):
-        st.write("Versión: 2.2")
-        st.write("Firma técnica: ")
-        st.write("**INBAL | EEBM**")
+        st.write("Versión: 2.2.1")
+        st.write("Firma técnica: **INBAL | EEBM**")
 
 # LÓGICA DE CONSULTA
 st.title("Módulo de Consulta de Plazas")
 data = cargar_datos_seguro()
 
 if data is not None:
-    st.caption(f"Archivo: {DB_FILE}")
+    st.caption(f"Archivo: {DB_FILE} (Datos consolidados de todas las hojas)")
     tipo = st.radio("**Seleccione el método:**", ["Código INBAL", "Código SHCP"], horizontal=True)
     col = "CÓDIGO INBAL" if tipo == "Código INBAL" else "CÓDIGO SHCP"
-    busqueda = st.text_input(f"Ingrese el {tipo}:").strip().upper()
+    
+    # Input de búsqueda
+    busqueda = st.text_input(f"Ingrese el {tipo}:", key="busqueda_input").strip().upper()
+    
+    # Botón de reseteo
+    if st.button("Limpiar búsqueda"):
+        st.rerun()
+
     if busqueda:
-        res = data[data[col].astype(str).str.contains(busqueda, na=False)]
-        if not res.empty:
-            st.dataframe(res, use_container_width=True, hide_index=True)
-        else: st.warning("No se encontró información.")
+        if col in data.columns:
+            res = data[data[col].astype(str).str.contains(busqueda, na=False)]
+            if not res.empty:
+                st.dataframe(res, use_container_width=True, hide_index=True)
+            else: st.warning("No se encontró información.")
+        else:
+            st.error(f"La columna '{col}' no se encuentra en el archivo.")
 else:
     st.info("El sistema no tiene datos cargados.")
 

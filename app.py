@@ -103,6 +103,7 @@ with st.sidebar:
     # Expander recuperado
     with st.expander("Información"):
         st.write("Versión: 2.2.2")
+        st.write("Firma técnica: ")
         st.write("**INBAL | EEBM**")
 
 # 6. INTERFAZ DE CONSULTA
@@ -139,3 +140,4 @@ else:
     st.info("Cargue el archivo Excel para iniciar.")
 
 st.markdown('<div class="footer">INBAL</div>', unsafe_allow_html=True)
+

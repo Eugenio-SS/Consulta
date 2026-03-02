@@ -4,20 +4,16 @@ import base64
 import requests
 import io
 
-# CONFIGURACIÓN E IDENTIDAD VISUAL
+# 1. CONFIGURACIÓN E IDENTIDAD VISUAL
 st.set_page_config(page_title="Módulo de Consulta INBAL", page_icon="🏛️", layout="wide")
 
-# ESTILOS PARA EL BOTÓN GUINDA Y TEXTO BLANCO
 st.markdown("""
     <style>
     .stApp { background-color: #FFFFFF !important; }
-    [data-testid="stMain"] p, [data-testid="stMain"] span, [data-testid="stMain"] label, [data-testid="stMain"] div, [data-testid="stMain"] h1, [data-testid="stMain"] h2, [data-testid="stMain"] h3 {
-        color: #1A1A1A !important;
-    }
     [data-testid="stSidebar"] { background-color: #4A141C !important; }
-    [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label, [data-testid="stSidebar"] div, [data-testid="stSidebar"] h1, [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h3 {
-        color: #FFFFFF !important;
-    }
+    [data-testid="stSidebar"] * { color: #FFFFFF !important; }
+    
+    /* BOTÓN GUINDA CON TEXTO BLANCO FORZADO */
     div.stButton > button {
         background-color: #4A141C !important;
         color: white !important;
@@ -26,6 +22,7 @@ st.markdown("""
         font-weight: bold !important;
     }
     div.stButton > button p { color: white !important; }
+    
     .footer { 
         position: fixed; left: 20px; bottom: 20px; text-align: left; 
         color: #555555 !important; font-size: 12px; font-weight: bold; 
@@ -33,39 +30,31 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# CARGAR CONFIGURACIÓN DESDE SECRETS
+# 2. CONFIGURACIÓN DE ACCESO (SECRETS)
 try:
     G_TOKEN = st.secrets["GITHUB_TOKEN"]
     ADMIN_PWD = st.secrets["ADMIN_PASSWORD"]
 except:
-    st.error("Configura los Secrets en Streamlit.")
+    st.error("Error: Configura GITHUB_TOKEN y ADMIN_PASSWORD en Secrets.")
     st.stop()
 
 GITHUB_USER = "Eugenio-SS"
 GITHUB_REPO = "Consulta"
 DB_FILE = "COMPENDIO.xlsx"
 
-def cargar_datos_seguro():
+# 3. FUNCIONES DE BASE DE DATOS
+@st.cache_data(show_spinner=False)
+def cargar_datos_por_hoja():
     url = f"https://api.github.com/repos/{GITHUB_USER}/{GITHUB_REPO}/contents/{DB_FILE}"
     headers = {"Authorization": f"Bearer {G_TOKEN}"}
     try:
         res = requests.get(url, headers=headers)
         if res.status_code == 200:
             content = base64.b64decode(res.json()['content'])
-            excel_file = pd.ExcelFile(io.BytesIO(content))
-            lista_dfs = []
-            for sheet in excel_file.sheet_names:
-                # Leer hoja tal cual viene en el archivo
-                temp_df = pd.read_excel(excel_file, sheet_name=sheet)
-                lista_dfs.append(temp_df)
-            
-            # Concatenar respetando columnas originales
-            df_final = pd.concat(lista_dfs, ignore_index=True)
-            
-            # Limpiar columnas 'Unnamed' o totalmente vacías si el usuario lo desea, 
-            # pero aquí las dejamos para que aparezcan si tienen datos.
-            return df_final.fillna("N/A")
-    except: return None
+            # Leemos todas las hojas de forma independiente
+            return pd.read_excel(io.BytesIO(content), sheet_name=None)
+    except:
+        return None
     return None
 
 def actualizar_en_github(archivo_objeto):
@@ -79,59 +68,69 @@ def actualizar_en_github(archivo_objeto):
     res_put = requests.put(url, json=payload, headers=headers)
     return res_put.status_code in [200, 201]
 
-# INICIALIZAR ESTADO DE BÚSQUEDA
-if 'busqueda' not in st.session_state:
-    st.session_state.busqueda = ""
+# 4. LÓGICA DE BOTÓN (RESET)
+if "query_text" not in st.session_state:
+    st.session_state.query_text = ""
 
-# PANEL LATERAL
+def borrar_busqueda():
+    st.session_state.query_text = ""
+
+# 5. PANEL LATERAL
 with st.sidebar:
     st.header("Seguridad")
-    password = st.text_input("Clave de Administrador", type="password")
-    if password == ADMIN_PWD:
+    pwd = st.text_input("Clave de Administrador", type="password")
+    if pwd == ADMIN_PWD:
         st.success("Acceso Autorizado")
         archivo_nuevo = st.file_uploader("Actualizar Base Excel", type=["xlsx", "xls"])
         if archivo_nuevo:
-            if actualizar_en_github(archivo_nuevo):
-                st.success("Base cargada correctamente")
-                st.rerun()
-    elif password:
+            with st.spinner("Sincronizando con el servidor..."):
+                if actualizar_en_github(archivo_nuevo):
+                    st.success("¡Base cargada exitosamente!")
+                    st.cache_data.clear()
+                    st.rerun()
+                else:
+                    st.error("Error en la conexión con GitHub.")
+    elif pwd:
         st.error("Contraseña Incorrecta")
+    
     st.markdown("---")
-    with st.expander("Información"):
-        st.write("Versión: 2.2.1")
-        st.write("**INBAL | EEBM**")
+    st.write("Versión: 2.2.2")
+    st.write("**INBAL | EEBM**")
 
-# LÓGICA DE CONSULTA
+# 6. INTERFAZ DE CONSULTA
 st.title("Módulo de Consulta de Plazas")
 
-data = cargar_datos_seguro()
+dict_hojas = cargar_datos_por_hoja()
 
-if data is not None:
+if dict_hojas:
     st.caption(f"Archivo: {DB_FILE}")
     
-    tipo = st.radio("**Seleccione el método de búsqueda:**", ["Código INBAL", "Código SHCP"], horizontal=True)
-    col_filtro = "CÓDIGO INBAL" if tipo == "Código INBAL" else "CÓDIGO SHCP"
-    
-    # Campo de texto controlado por Session State
-    busqueda_input = st.text_input(f"Ingrese el {tipo}:", value=st.session_state.busqueda, key="input_text").strip().upper()
-    st.session_state.busqueda = busqueda_input
+    metodo = st.radio("**Seleccione el método:**", ["Código INBAL", "Código SHCP"], horizontal=True)
+    col_busqueda = "CÓDIGO INBAL" if metodo == "Código INBAL" else "CÓDIGO SHCP"
 
-    # BOTÓN LIMPIAR: Reinicia el valor en el estado y refresca
-    if st.button("Limpiar datos"):
-        st.session_state.busqueda = ""
-        st.rerun()
+    # Input controlado por estado de sesión
+    texto_usuario = st.text_input(f"Ingrese el {metodo}:", key="query_text").strip().upper()
 
-    if st.session_state.busqueda:
-        if col_filtro in data.columns:
-            res = data[data[col_filtro].astype(str).str.contains(st.session_state.busqueda, na=False)]
-            if not res.empty:
-                # Mostrar tabla con encabezados originales, ocultando el índice
-                st.dataframe(res, use_container_width=True, hide_index=True)
-            else:
-                st.warning("No se encontró información.")
-        else:
-            st.error(f"La columna '{col_filtro}' no existe en el archivo.")
+    # Botón de Limpiar con Callback funcional
+    st.button("Limpiar datos", on_click=borrar_busqueda)
+
+    if texto_usuario:
+        encontrado = False
+        for nombre_hoja, df in dict_hojas.items():
+            # Solo buscar si la columna existe en ESTA hoja
+            if col_busqueda in df.columns:
+                # Filtrado parcial
+                filtro = df[df[col_busqueda].astype(str).str.contains(texto_usuario, na=False)]
+                
+                if not filtro.empty:
+                    st.markdown(f"**Resultados en pestaña: {nombre_hoja}**")
+                    # Mostramos la tabla tal cual viene en esa hoja, sin columnas extra
+                    st.dataframe(filtro, use_container_width=True, hide_index=True)
+                    encontrado = True
+        
+        if not encontrado:
+            st.warning(f"No se encontró el código '{texto_usuario}'")
 else:
-    st.info("Cargue el archivo Excel para iniciar.")
+    st.info("El administrador debe cargar el archivo Excel.")
 
 st.markdown('<div class="footer">INBAL</div>', unsafe_allow_html=True)
